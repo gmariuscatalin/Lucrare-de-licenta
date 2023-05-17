@@ -68,14 +68,12 @@ namespace NewBank2.ViewModel
             get => _isDollarSelected;
             set
             {
-                if (SetProperty(ref _isDollarSelected, value))
+                SetProperty(ref _isDollarSelected, value);
+                if (value)
                 {
-                    if (value)
-                    {
-                        SelectedCurrency = CurrencyType.USD;
-                        IsEuroSelected = false;
-                        IsRonSelected = false;
-                    }
+                    SelectedCurrency = CurrencyType.USD;
+                    IsEuroSelected = false;
+                    IsRonSelected = false;
                 }
             }
         }
@@ -86,14 +84,12 @@ namespace NewBank2.ViewModel
             get => _isEuroSelected;
             set
             {
-                if (SetProperty(ref _isEuroSelected, value))
+                SetProperty(ref _isEuroSelected, value);
+                if (value)
                 {
-                    if (value)
-                    {
-                        SelectedCurrency = CurrencyType.EUR;
-                        IsDollarSelected = false;
-                        IsRonSelected = false;
-                    }
+                    SelectedCurrency = CurrencyType.EUR;
+                    IsDollarSelected = false;
+                    IsRonSelected = false;
                 }
             }
         }
@@ -104,14 +100,12 @@ namespace NewBank2.ViewModel
             get => _isRonSelected;
             set
             {
-                if (SetProperty(ref _isRonSelected, value))
+                SetProperty(ref _isRonSelected, value);
+                if (value)
                 {
-                    if (value)
-                    {
-                        SelectedCurrency = CurrencyType.RON;
-                        IsDollarSelected = false;
-                        IsEuroSelected = false;
-                    }
+                    SelectedCurrency = CurrencyType.RON;
+                    IsDollarSelected = false;
+                    IsEuroSelected = false;
                 }
             }
         }

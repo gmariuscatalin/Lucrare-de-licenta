@@ -169,9 +169,8 @@ namespace NewBank2.ViewModel
          adding a new transaction record to the database.*/
         private void ExecutePayUtility(object obj)
         {
-            if (SelectedFromAccount == null || SelectedUtilityCompany == null || AmountDecimal == null || AmountDecimal <= 0)
+            if (!ValidateUtilityPayment())
             {
-                ErrorMessageUtility = "Please fill in all fields and ensure the amount is greater than 0.";
                 return;
             }
 
@@ -188,32 +187,52 @@ namespace NewBank2.ViewModel
             var fromAccount = currentUser?.Accounts.FirstOrDefault(a => a.AccountId == SelectedFromAccount.AccountId);
             var utilityAccount = utilityUser?.Accounts.FirstOrDefault(a => a.Currency == SelectedFromAccount.Currency);
 
-            if (fromAccount == null)
+            if (!AreAccountsValid(fromAccount, utilityAccount))
             {
-                ErrorMessageUtility = "The selected account could not be found.";
                 return;
             }
-            if (utilityAccount == null)
-            {
-                ErrorMessageUtility = "The utility company does not have an account with the specified currency.";
-                return;
-            }
-            if (fromAccount.Status != "Active" || utilityAccount.Status != "Active")
-            {
-                ErrorMessageUtility = "Your account must be 'Active' to proceed with the payment.";
-                return;
-            }
-            if (AmountDecimal <= 0)
-            {
-                ErrorMessageUtility = "Amount must be greater than 0.";
-                return;
-            }
+
             if (fromAccount.Balance < AmountDecimal)
             {
                 ErrorMessageUtility = "Insufficient balance in the account.";
                 return;
             }
 
+            PerformUtilityPayment(fromAccount, utilityAccount, context);
+        }
+
+        private bool ValidateUtilityPayment()
+        {
+            if (SelectedFromAccount == null || SelectedUtilityCompany == null || AmountDecimal == null || AmountDecimal <= 0)
+            {
+                ErrorMessageUtility = "Please fill in all fields and ensure the amount is greater than 0.";
+                return false;
+            }
+            return true;
+        }
+
+        private bool AreAccountsValid(Account fromAccount, Account utilityAccount)
+        {
+            if (fromAccount == null)
+            {
+                ErrorMessageUtility = "The selected account could not be found.";
+                return false;
+            }
+            if (utilityAccount == null)
+            {
+                ErrorMessageUtility = "The utility company does not have an account with the specified currency.";
+                return false;
+            }
+            if (fromAccount.Status != "Active" || utilityAccount.Status != "Active")
+            {
+                ErrorMessageUtility = "Your account must be 'Active' to proceed with the payment.";
+                return false;
+            }
+            return true;
+        }
+
+        private void PerformUtilityPayment(Account fromAccount, Account utilityAccount, LoginContext context)
+        {
             // Perform payment
             fromAccount.Balance -= AmountDecimal;
             utilityAccount.Balance += AmountDecimal;
@@ -248,23 +267,15 @@ namespace NewBank2.ViewModel
          and adding new transaction records to the database.*/
         private async void TransferBetweenAccounts(object obj)
         {
-            if (SelectedFromAccount == null || SelectedToAccount == null)
+            if (!ValidateSelectedAccounts())
             {
-                ErrorMessageAccounts = "Please select both accounts.";
                 return;
             }
-            if (SelectedFromAccount.AccountId == SelectedToAccount.AccountId)
+
+            ExchangeRate = await GetExchangeRateAsync(SelectedFromAccount.Currency, SelectedToAccount.Currency);
+            if (ExchangeRate == null)
             {
-                ErrorMessageAccounts = "Cannot transfer between the same account.";
-                return;
-            }
-            try
-            {
-                ExchangeRate = await GetExchangeRateAsync(SelectedFromAccount.Currency, SelectedToAccount.Currency);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessageAccounts = $"Error fetching exchange rate: {ex.Message}";
+                ErrorMessageAccounts = "Error fetching exchange rate.";
                 return;
             }
 
@@ -274,26 +285,56 @@ namespace NewBank2.ViewModel
             var fromAccount = currentUser?.Accounts.FirstOrDefault(a => a.AccountId == SelectedFromAccount.AccountId);
             var toAccount = currentUser?.Accounts.FirstOrDefault(a => a.AccountId == SelectedToAccount.AccountId);
 
+            if (!AreTransferAccountsValid(fromAccount, toAccount))
+            {
+                return;
+            }
+
+            PerformAccountTransfer(fromAccount, toAccount, context);
+        }
+
+        private bool ValidateSelectedAccounts()
+        {
+            if (SelectedFromAccount == null || SelectedToAccount == null)
+            {
+                ErrorMessageAccounts = "Please select both accounts.";
+                return false;
+            }
+            if (SelectedFromAccount.AccountId == SelectedToAccount.AccountId)
+            {
+                ErrorMessageAccounts = "Cannot transfer between the same account.";
+                return false;
+            }
+            return true;
+        }
+
+        private bool AreTransferAccountsValid(Account fromAccount, Account toAccount)
+        {
             if (fromAccount == null || toAccount == null)
             {
                 ErrorMessageAccounts = "One or both of the selected accounts could not be found.";
-                return;
+                return false;
             }
             if (fromAccount.Status != "Active" || toAccount.Status != "Active")
             {
                 ErrorMessageAccounts = "Both accounts must have the status 'Active' to proceed with the payment.";
-                return;
+                return false;
             }
             if (AmountDecimal <= 0)
             {
                 ErrorMessageAccounts = "Amount must be greater than 0.";
-                return;
+                return false;
             }
             if (fromAccount.Balance < AmountDecimal)
             {
                 ErrorMessageAccounts = "Insufficient balance in the account.";
-                return;
+                return false;
             }
+            return true;
+        }
+
+        private void PerformAccountTransfer(Account fromAccount, Account toAccount, LoginContext context)
+        {
             // Perform transfer
             decimal? convertedAmount = AmountDecimal * ExchangeRate;
             fromAccount.Balance -= AmountDecimal;
@@ -344,49 +385,74 @@ namespace NewBank2.ViewModel
             var currentUser = context.Users.Include(u => u.Accounts).FirstOrDefault(u => u.Username == StoreUserViewModel.Username);
             var toUser = context.Users.Include(u => u.Accounts).FirstOrDefault(u => u.Username == ToUsername);
 
-            if (currentUser.Username == ToUsername)
+            if (!ValidateUserTransfer(currentUser, toUser))
             {
-                ErrorMessageUser="You cannot transfer money to yourself. Please enter a different email.";
-                return;
-            }
-            if (toUser == null)
-            {
-                ErrorMessageUser="User not found.";
                 return;
             }
 
             var fromAccount = currentUser?.Accounts.FirstOrDefault(a => a.Currency == SelectedFromAccount.Currency);
             var toAccount = toUser.Accounts.FirstOrDefault(a => a.Currency == SelectedFromAccount.Currency);
+
+            if (!AreTransferMoneyAccountsValid(fromAccount, toAccount))
+            {
+                return;
+            }
+
+            PerformUserTransfer(fromAccount, toAccount, context, currentUser.Username);
+        }
+
+        private bool ValidateUserTransfer(User currentUser, User toUser)
+        {
+            if (currentUser.Username == ToUsername)
+            {
+                ErrorMessageUser = "You cannot transfer money to yourself. Please enter a different email.";
+                return false;
+            }
+            if (toUser == null)
+            {
+                ErrorMessageUser = "User not found.";
+                return false;
+            }
+            return true;
+        }
+
+        private bool AreTransferMoneyAccountsValid(Account fromAccount, Account toAccount)
+        {
             if (fromAccount == null)
             {
                 ErrorMessageUtility = "The selected account could not be found.";
-                return;
+                return false;
             }
             if (toAccount == null)
             {
                 ErrorMessageUser = $"The user does not have an account with the specified currency.";
-                return;
+                return false;
             }
             if (fromAccount.Status != "Active")
             {
                 ErrorMessageUser = "Your account must be 'Active' to proceed with the payment.";
-                return;
+                return false;
             }
             if (toAccount.Status != "Active")
             {
-                ErrorMessageUser = "The user you are tying to send money must have the account 'Active'.";
-                return;
+                ErrorMessageUser = "The user you are trying to send money must have the account 'Active'.";
+                return false;
             }
             if (AmountDecimal <= 0)
             {
                 ErrorMessageUser = "Amount must be greater than 0.";
-                return;
+                return false;
             }
             if (fromAccount.Balance < AmountDecimal)
             {
-                ErrorMessageUser="Insufficient balance in the account.";
-                return;
+                ErrorMessageUser = "Insufficient balance in the account.";
+                return false;
             }
+            return true;
+        }
+
+        private void PerformUserTransfer(Account fromAccount, Account toAccount, LoginContext context, string username)
+        {
             // Perform transfer
             fromAccount.Balance -= AmountDecimal;
             toAccount.Balance += AmountDecimal;
@@ -412,7 +478,7 @@ namespace NewBank2.ViewModel
                 AccountId = toAccount.AccountId,
                 CurrencyTr = toAccount.Currency,
                 AmountTr = +AmountDecimal,
-                UsernameTr = currentUser.Username,
+                UsernameTr = username,
                 Category = "Between Users",
                 TransactionDate = DateTime.Now
             };
@@ -421,7 +487,7 @@ namespace NewBank2.ViewModel
             // Save changes
             context.SaveChanges();
 
-            ErrorMessageUser="Transfer successful.";
+            ErrorMessageUser = "Transfer successful.";
         }
 
         public void RadioButtonChecked(object obj)

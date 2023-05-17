@@ -111,6 +111,8 @@ namespace NewBank2.ViewModel
                 // Switch the visibility of the panels
                 LoginPanelVisibility = Visibility.Collapsed;
                 VerificationPanelVisibility = Visibility.Visible;
+                // Clear the error message
+                ErrorMessage = string.Empty;
             }
             else
             {

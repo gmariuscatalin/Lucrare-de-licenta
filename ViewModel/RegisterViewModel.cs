@@ -132,83 +132,121 @@ namespace NewBank2.ViewModel
         // Method to handle the registration process
         private void Register(object parameter)
         {
-            if (IsPasswordValid())
+            if (!IsPasswordValid())
             {
-                // Check if Name and LastName are not empty
-                if (User.Name == null || User.Name.Length == 0)
-                {
-                    ErrorMessage = "Name cannot be empty.";
-                    return;
-                }
-
-                if (User.LastName == null || User.LastName.Length == 0)
-                {
-                    ErrorMessage = "Last name cannot be empty.";
-                    return;
-                }
-                // Check if email already exists in the database
-                using (var context = new LoginContext())
-                {
-                    if (context.Users.Any(u => u.Username == User.Username))
-                    {
-                        ErrorMessage = "Email already exists. Please choose a different email.";
-                        return;
-                    }
-                }
-                // Check for a valid email format
-                string emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-                if (!Regex.IsMatch(User.Username, emailPattern))
-                {
-                    ErrorMessage = "Invalid email format.";
-                    return;
-                }
-
-                // If email is unique, create new user and save to database
-                User newUser = new User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = User.Username,
-                    Password = SecureStringToString(Password),
-                    Name = User.Name,
-                    LastName = User.LastName
-                };
-
-                using (var context = new LoginContext())
-                {
-                    context.Users.Add(newUser);
-                    context.SaveChanges();
-                }
-
-                ErrorMessage = "User registered successfully.";
-
-                // Clear the fields after successful registration
-                ResetUser();
+                return;
             }
+
+            if (!IsNameValid())
+            {
+                return;
+            }
+
+            if (!IsEmailUnique())
+            {
+                return;
+            }
+
+            if (!IsEmailFormatValid())
+            {
+                return;
+            }
+
+            CreateUserAndSaveToDatabase();
+
+            ErrorMessage = "User registered successfully.";
+
+            // Clear the fields after successful registration
+            ResetUser();
+        }
+
+        private bool IsNameValid()
+        {
+            // Check if Name and LastName are not empty
+            if (User.Name == null || User.Name.Length == 0)
+            {
+                ErrorMessage = "Name cannot be empty.";
+                return false;
+            }
+
+            if (User.LastName == null || User.LastName.Length == 0)
+            {
+                ErrorMessage = "Last name cannot be empty.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsEmailUnique()
+        {
+            // Check if email already exists in the database
+            using (var context = new LoginContext())
+            {
+                if (context.Users.Any(u => u.Username == User.Username))
+                {
+                    ErrorMessage = "Email already exists. Please choose a different email.";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool IsEmailFormatValid()
+        {
+            // Check for a valid email format
+            string emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            if (!Regex.IsMatch(User.Username, emailPattern))
+            {
+                ErrorMessage = "Invalid email format.";
+                return false;
+            }
+
+            return true;
         }
 
         // Validate the password input
         private bool IsPasswordValid()
         {
-            if (Password == null || Password.Length < 8 || ConfirmPassword == null || ConfirmPassword.Length < 8)
+            if (Password == null || Password.Length < 8)
             {
                 ErrorMessage = "Password must be at least 8 characters.";
                 return false;
             }
 
             string passwordString = SecureStringToString(Password);
+            if (!SecureStringToString(Password).Equals(SecureStringToString(ConfirmPassword)))
+            {
+                ErrorMessage = "Passwords do not match.";
+                return false;
+            }
             if (!passwordString.Any(char.IsDigit) || !passwordString.Any(char.IsPunctuation))
             {
                 ErrorMessage = "Password must contain at least one digit and one special character.";
                 return false;
             }
 
-            if (!SecureStringToString(Password).Equals(SecureStringToString(ConfirmPassword)))
-            {
-                ErrorMessage = "Passwords do not match.";
-                return false;
-            }
-
             return true;
+        }
+
+        private void CreateUserAndSaveToDatabase()
+        {
+            // If email is unique, create new user and save to database
+            User newUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = User.Username,
+                Password = SecureStringToString(Password),
+                Name = User.Name,
+                LastName = User.LastName
+            };
+
+            using (var context = new LoginContext())
+            {
+                context.Users.Add(newUser);
+                context.SaveChanges();
+            }
         }
 
         // Convert a SecureString to a regular string
