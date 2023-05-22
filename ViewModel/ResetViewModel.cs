@@ -97,7 +97,7 @@ namespace NewBank2.ViewModel
             using (var client = new MailKit.Net.Smtp.SmtpClient())
             {
                 client.Connect("smtp.gmail.com", 587, false);
-                client.Authenticate("newbank1903@gmail.com", "brdrevqrhdxkhaot");
+                client.Authenticate();
                 client.Send(message);
                 client.Disconnect(true);
             }
