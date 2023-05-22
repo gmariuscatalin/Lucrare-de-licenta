@@ -61,7 +61,7 @@ namespace NewBank2.ViewModel
          represent the currency codes to convert from and to, respectively.*/
         private async Task<decimal> GetExchangeRateAsync(string fromCurrency, string toCurrency)
         {
-            string apiKey = "kwGoa58s29HK8xzUvLjZhbwQHKumrYPS";
+            string apiKey = "";
             string apiUrl = $"https://api.apilayer.com/exchangerates_data/convert?amount=1&from={fromCurrency}&to={toCurrency}";
 
             httpClient.DefaultRequestHeaders.Clear();
